@@ -6,5 +6,7 @@ dependencies = [
     "github-copilot-sdk @ git+https://github.com/github/copilot-sdk.git#subdirectory=python",
     "asyncio",
     "httpx",
-    "pydantic"
+    "pydantic",
+    "fastapi",
+    "uvicorn"
 ]

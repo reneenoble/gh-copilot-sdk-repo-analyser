@@ -1,0 +1,190 @@
+* {
+    box-sizing: border-box;
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 2rem;
+    background: #f6f8fa;
+    color: #24292f;
+}
+
+h1 {
+    color: #0969da;
+    margin-bottom: 0.5rem;
+}
+
+.subtitle {
+    color: #57606a;
+    margin-bottom: 2rem;
+}
+
+.form-group {
+    margin-bottom: 1rem;
+}
+
+label {
+    display: block;
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+}
+
+input[type="text"],
+input[type="number"] {
+    width: 100%;
+    padding: 0.75rem;
+    border: 1px solid #d0d7de;
+    border-radius: 6px;
+    font-size: 1rem;
+}
+
+input:focus {
+    outline: 2px solid #0969da;
+    border-color: transparent;
+}
+
+.form-row {
+    display: flex;
+    gap: 1rem;
+}
+
+.form-row .form-group {
+    flex: 1;
+}
+
+button {
+    background: #2da44e;
+    color: white;
+    border: none;
+    padding: 0.75rem 1.5rem;
+    font-size: 1rem;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: 600;
+}
+
+button:hover {
+    background: #2c974b;
+}
+
+button:disabled {
+    background: #94d3a2;
+    cursor: wait;
+}
+
+.tabs {
+    display: flex;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+}
+
+.tab {
+    padding: 0.5rem 1rem;
+    border: 1px solid #d0d7de;
+    background: white;
+    border-radius: 6px 6px 0 0;
+    cursor: pointer;
+}
+
+.tab.active {
+    background: #0969da;
+    color: white;
+    border-color: #0969da;
+}
+
+.tab-content {
+    display: none;
+}
+
+.tab-content.active {
+    display: block;
+}
+
+#result {
+    margin-top: 2rem;
+    padding: 1.5rem;
+    background: white;
+    border: 1px solid #d0d7de;
+    border-radius: 6px;
+    display: none;
+}
+
+#result.show {
+    display: block;
+}
+
+#result h2 {
+    margin-top: 1.5rem;
+    color: #0969da;
+    border-bottom: 1px solid #d0d7de;
+    padding-bottom: 0.5rem;
+}
+
+#result h2:first-child {
+    margin-top: 0;
+}
+
+#result ul {
+    padding-left: 1.5rem;
+}
+
+#result code {
+    background: #f6f8fa;
+    padding: 0.2rem 0.4rem;
+    border-radius: 3px;
+}
+
+#result pre {
+    background: #f6f8fa;
+    padding: 1rem;
+    border-radius: 6px;
+    overflow-x: auto;
+}
+
+.loading {
+    text-align: center;
+    padding: 2rem;
+    color: #57606a;
+}
+
+.spinner {
+    display: inline-block;
+    width: 20px;
+    height: 20px;
+    border: 3px solid #d0d7de;
+    border-top-color: #0969da;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin-right: 0.5rem;
+}
+
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+.tool-indicator {
+    background: #ddf4ff;
+    color: #0969da;
+    padding: 0.5rem 1rem;
+    border-radius: 6px;
+    margin-bottom: 1rem;
+    font-size: 0.9rem;
+}
+
+.tools-summary {
+    color: #57606a;
+    font-size: 0.85rem;
+    font-style: italic;
+    margin-bottom: 1rem;
+}
+
+.error {
+    color: #cf222e;
+    background: #ffebe9;
+    padding: 1rem;
+    border-radius: 6px;
+}

@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GitHub Issue Complexity Analyser</title>
+    <link rel="stylesheet" href="/static/styles.css">
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+</head>
+<body>
+    <h1>🐛 GitHub Issue Complexity Analyser</h1>
+    <p class="subtitle">Analyse GitHub issues to determine the appropriate developer skill level</p>
+    
+    <div class="tabs">
+        <div class="tab active" data-tab="url">Paste URL</div>
+        <div class="tab" data-tab="manual">Manual Entry</div>
+    </div>
+    
+    <form id="analyseForm">
+        <div id="url-tab" class="tab-content active">
+            <div class="form-group">
+                <label for="url">GitHub Issue URL</label>
+                <input type="text" id="url" name="url" placeholder="https://github.com/owner/repo/issues/123">
+            </div>
+        </div>
+        
+        <div id="manual-tab" class="tab-content">
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="owner">Owner</label>
+                    <input type="text" id="owner" name="owner" placeholder="microsoft">
+                </div>
+                <div class="form-group">
+                    <label for="repo">Repository</label>
+                    <input type="text" id="repo" name="repo" placeholder="vscode">
+                </div>
+                <div class="form-group">
+                    <label for="issue_number">Issue #</label>
+                    <input type="number" id="issue_number" name="issue_number" placeholder="12345">
+                </div>
+            </div>
+        </div>
+        
+        <button type="submit" id="submitBtn">Analyse Issue</button>
+    </form>
+    
+    <div id="result"></div>
+    
+    <script src="/static/app.js"></script>
+</body>
+</html>
