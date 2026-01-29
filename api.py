@@ -55,6 +55,24 @@ class AnalysisResult(BaseModel):
     analysis: str
 
 
+ANALYSIS_PROMPT = """Please analyse GitHub issue #{issue_number} in the repository {owner}/{repo}.
+
+Always use Autralian English spelling. 
+
+First fetch the issue details, then explore the codebase, and provide your complexity assessment - this means is it a simple bug fix, a moderate feature addition, or a complex architectural change. Is it somethinga junior, mid-level, senior, or senior+ developer should handle? 
+
+Format your response with clear sections, using language that is suitable for the intended skill level.:
+## Issue Summary
+## Complexity Assessment
+- **Recommended Skill Level**: Junior / Mid-level / Senior / Senior+
+- **Confidence**: High / Medium / Low
+## Reasoning
+## Files Likely Involved
+## Suggested Approach
+## Mentorship Notes (if applicable)
+"""
+
+
 async def stream_analysis(owner: str, repo: str, issue_number: int):
     """Stream the complexity analysis as SSE events."""
     client = CopilotClient()
@@ -94,7 +112,7 @@ async def stream_analysis(owner: str, repo: str, issue_number: int):
 
     session.on(on_event)
 
-    prompt = f"Please analyze GitHub issue #{issue_number} in the repository {owner}/{repo}. First fetch the issue details, then explore the codebase, and provide your complexity assessment."
+    prompt = ANALYSIS_PROMPT.format(issue_number=issue_number, owner=owner, repo=repo)
 
     await session.send({"prompt": prompt})
 
@@ -143,7 +161,7 @@ async def run_analysis(owner: str, repo: str, issue_number: int) -> str:
 
     session.on(on_event)
 
-    prompt = f"Please analyze GitHub issue #{issue_number} in the repository {owner}/{repo}. First fetch the issue details, then explore the codebase, and provide your complexity assessment."
+    prompt = ANALYSIS_PROMPT.format(issue_number=issue_number, owner=owner, repo=repo)
 
     await session.send({"prompt": prompt})
     await done.wait()
