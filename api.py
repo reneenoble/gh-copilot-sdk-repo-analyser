@@ -70,14 +70,16 @@ Format your response with clear sections, using language that is suitable for th
 ## Files Likely Involved
 ## Suggested Approach
 ## Mentorship Notes (if applicable)
+## What you need to know before you start
+ - Skills a dev that is too junior can learn to be able to complete this task (make it really approachable)
 """
 
-
 async def stream_analysis(owner: str, repo: str, issue_number: int):
-    """Stream the complexity analysis as SSE events."""
+    """Stream the analysis results as Server-Sent Events."""
+    
     client = CopilotClient()
     await client.start()
-
+    
     session = await client.create_session({
         "model": "gpt-5",
         "tools": [
@@ -88,27 +90,42 @@ async def stream_analysis(owner: str, repo: str, issue_number: int):
         ],
         "instructions": SYSTEM_INSTRUCTIONS,
     })
-
+    
     queue = asyncio.Queue()
     tool_calls = []
-    message_count = 0
-    idle_count = 0
+    expecting_tools = False
+    got_final_response = False
 
     def on_event(event):
-        nonlocal message_count, idle_count
+        nonlocal expecting_tools, got_final_response
         event_name = event.type.value if hasattr(event.type, 'value') else str(event.type)
         
         if event_name == "assistant.message":
-            message_count += 1
-            queue.put_nowait(("message", event.data.content))
-        elif event_name == "tool.call":
-            tool_calls.append(event.data.name)
-            queue.put_nowait(("tool_call", event.data.name))
+            content = getattr(event.data, 'content', None)
+            # Only queue if there's actual content
+            if content and content.strip():
+                queue.put_nowait(("message", content))
+                
+                if any(word in content.lower() for word in ['plan:', 'proceeding', 'will fetch', 'let me', 'i\'ll']):
+                    expecting_tools = True
+                
+                if tool_calls and not expecting_tools:
+                    got_final_response = True
+                
+        elif event_name in ("tool.call", "tool.execution_start"):
+            tool_name = getattr(event.data, 'name', None) or getattr(event.data, 'tool_name', None)
+            # Only queue if tool name exists
+            if tool_name:
+                tool_calls.append(tool_name)
+                queue.put_nowait(("tool_call", tool_name))
+                expecting_tools = False
+            
+        elif event_name == "tool.execution_complete":
+            expecting_tools = False
+            
         elif event_name == "session.idle":
-            idle_count += 1
-            # Only finish if: no tools called, OR this is 2nd+ idle (after tools completed)
-            if not tool_calls or idle_count > 1:
-                queue.put_nowait(("done", list(tool_calls)))
+            if not expecting_tools and (got_final_response or not tool_calls):
+                queue.put_nowait(("done", tool_calls))
 
     session.on(on_event)
 
@@ -131,6 +148,78 @@ async def stream_analysis(owner: str, repo: str, issue_number: int):
     await client.stop()
 
 
+# async def stream_analysis(owner: str, repo: str, issue_number: int):
+#     """Stream the complexity analysis as SSE events."""
+#     client = CopilotClient()
+#     await client.start()
+
+#     session = await client.create_session({
+#         "model": "gpt-5",
+#         "tools": [
+#             get_github_issue,
+#             get_repo_structure,
+#             search_code_in_repo,
+#             get_file_content,
+#         ],
+#         "instructions": SYSTEM_INSTRUCTIONS,
+#     })
+
+#     queue = asyncio.Queue()
+#     tool_calls = []
+#     expecting_tools = False
+#     got_final_response = False
+
+#     def on_event(event):
+#         nonlocal expecting_tools, got_final_response
+#         event_name = event.type.value if hasattr(event.type, 'value') else str(event.type)
+        
+#         if event_name == "assistant.message":
+#             content = event.data.content
+#             queue.put_nowait(("message", content))
+            
+#             # Check if this message indicates tools are coming
+#             if any(word in content.lower() for word in ['plan:', 'proceeding', 'will fetch', 'let me', 'i\'ll']):
+#                 expecting_tools = True
+            
+#             # If we already ran tools, this is the final response
+#             if tool_calls and not expecting_tools:
+#                 got_final_response = True
+                
+#         elif event_name in ("tool.call", "tool.execution_start"):
+#             tool_name = getattr(event.data, 'name', None) or getattr(event.data, 'tool_name', 'unknown')
+#             tool_calls.append(tool_name)
+#             queue.put_nowait(("tool_call", tool_name))
+#             expecting_tools = False  # Tools are now running
+            
+#         elif event_name == "tool.execution_complete":
+#             expecting_tools = False  # Tool finished, expect more content or idle
+            
+#         elif event_name == "session.idle":
+#             # Only finish if: no tools expected AND (got final response OR no tools involved)
+#             if not expecting_tools and (got_final_response or not tool_calls):
+#                 queue.put_nowait(("done", list(tool_calls)))
+
+#     session.on(on_event)
+
+    # prompt = ANALYSIS_PROMPT.format(issue_number=issue_number, owner=owner, repo=repo)
+
+    # await session.send({"prompt": prompt})
+
+    # # Yield SSE events from the queue
+    # while True:
+    #     event_type, data = await queue.get()
+    #     if event_type == "message":
+    #         yield f"event: message\ndata: {json.dumps({'content': data})}\n\n"
+    #     elif event_type == "tool_call":
+    #         yield f"event: tool_call\ndata: {json.dumps({'name': data})}\n\n"
+    #     elif event_type == "done":
+    #         yield f"event: done\ndata: {json.dumps({'tools_used': data})}\n\n"
+    #         break
+
+    # await session.destroy()
+    # await client.stop()
+
+
 async def run_analysis(owner: str, repo: str, issue_number: int) -> str:
     """Run the complexity analysis and return the full response."""
     client = CopilotClient()
@@ -150,14 +239,34 @@ async def run_analysis(owner: str, repo: str, issue_number: int) -> str:
     done = asyncio.Event()
     response_parts = []
     tool_calls = []
+    expecting_tools = False
+    got_final_response = False
 
     def on_event(event):
-        if event.type.value == "assistant.message":
-            response_parts.append(event.data.content)
-        elif event.type.value == "tool.call":
-            tool_calls.append(event.data.name)
-        elif event.type.value == "session.idle":
-            done.set()
+        nonlocal expecting_tools, got_final_response
+        event_name = event.type.value if hasattr(event.type, 'value') else str(event.type)
+        
+        if event_name == "assistant.message":
+            content = event.data.content
+            response_parts.append(content)
+            
+            if any(word in content.lower() for word in ['plan:', 'proceeding', 'will fetch', 'let me', 'i\'ll']):
+                expecting_tools = True
+            
+            if tool_calls and not expecting_tools:
+                got_final_response = True
+                
+        elif event_name in ("tool.call", "tool.execution_start"):
+            tool_name = getattr(event.data, 'name', None) or getattr(event.data, 'tool_name', 'unknown')
+            tool_calls.append(tool_name)
+            expecting_tools = False
+            
+        elif event_name == "tool.execution_complete":
+            expecting_tools = False
+            
+        elif event_name == "session.idle":
+            if not expecting_tools and (got_final_response or not tool_calls):
+                done.set()
 
     session.on(on_event)
 

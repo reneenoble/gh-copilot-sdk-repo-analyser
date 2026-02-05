@@ -18,6 +18,42 @@ function parseGitHubUrl(url) {
     return { owner: match[1], repo: match[2], issue_number: parseInt(match[3]) };
 }
 
+function addChatMessage(container, emoji, content, type = 'assistant') {
+    const msg = document.createElement('div');
+    msg.className = `chat-message chat-${type}`;
+    msg.innerHTML = `
+        <div class="chat-avatar">${emoji}</div>
+        <div class="chat-bubble">
+            <div class="chat-content">${content}</div>
+        </div>
+    `;
+    container.appendChild(msg);
+    msg.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    return msg.querySelector('.chat-content');
+}
+
+function addToolMessage(container, toolName) {
+    const toolEmojis = {
+        'get_github_issue': '📋',
+        'get_repo_structure': '📂',
+        'search_code_in_repo': '🔍',
+        'get_file_content': '📄'
+    };
+    const emoji = toolEmojis[toolName] || '🔧';
+    const msg = document.createElement('div');
+    msg.className = 'chat-message chat-tool';
+    msg.innerHTML = `
+        <div class="chat-avatar">${emoji}</div>
+        <div class="chat-tool-status">
+            <span class="tool-spinner"></span>
+            Fetching: <strong>${toolName.replace(/_/g, ' ')}</strong>...
+        </div>
+    `;
+    container.appendChild(msg);
+    msg.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    return msg;
+}
+
 document.getElementById('analyseForm').addEventListener('submit', async (e) => {
     e.preventDefault();
     const btn = document.getElementById('submitBtn');
@@ -26,7 +62,6 @@ document.getElementById('analyseForm').addEventListener('submit', async (e) => {
     btn.disabled = true;
     btn.textContent = 'Analysing...';
     result.className = 'show';
-    result.innerHTML = '<div class="loading"><span class="spinner"></span>Starting analysis...</div>';
     
     try {
         let owner, repo, issue_number;
@@ -40,45 +75,79 @@ document.getElementById('analyseForm').addEventListener('submit', async (e) => {
             issue_number = parseInt(document.getElementById('issue_number').value);
         }
         
+        // Set up chat container
+        result.innerHTML = `
+            <div class="chat-header">
+                <span class="repo-badge">📁 ${owner}/${repo}</span>
+                <span class="issue-badge">#${issue_number}</span>
+            </div>
+            <div id="chat-container"></div>
+        `;
+        
+        const container = document.getElementById('chat-container');
+        addChatMessage(container, '🚀', 'Starting analysis...', 'status');
+        
         // Use SSE for streaming
         const params = new URLSearchParams({ owner, repo, issue_number });
         const eventSource = new EventSource(`/analyse/stream?${params}`);
         
-        let content = '';
-        let toolCalls = [];
-        
-        // Show initial header
-        result.innerHTML = `<p><strong>Repository:</strong> ${owner}/${repo} | <strong>Issue:</strong> #${issue_number}</p><div id="tools-status"></div><div id="analysis-content"></div>`;
+        let currentBubble = null;
+        let currentContent = '';
+        let lastToolMsg = null;
         
         eventSource.addEventListener('message', (e) => {
             const data = JSON.parse(e.data);
-            content += data.content;
-            document.getElementById('analysis-content').innerHTML = marked.parse(content);
+            
+            // Mark previous tool as done
+            if (lastToolMsg) {
+                lastToolMsg.querySelector('.tool-spinner')?.remove();
+                lastToolMsg.querySelector('.chat-tool-status').innerHTML += ' ✓';
+                lastToolMsg = null;
+            }
+            
+            // Create new bubble if needed
+            if (!currentBubble) {
+                currentBubble = addChatMessage(container, '🤖', '', 'assistant');
+            }
+            
+            currentContent += data.content;
+            currentBubble.innerHTML = marked.parse(currentContent);
+            currentBubble.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
         });
         
         eventSource.addEventListener('tool_call', (e) => {
             const data = JSON.parse(e.data);
-            toolCalls.push(data.name);
-            document.getElementById('tools-status').innerHTML = 
-                `<div class="tool-indicator">🔧 Using: ${data.name}...</div>`;
+            
+            // Mark previous tool as done
+            if (lastToolMsg) {
+                lastToolMsg.querySelector('.tool-spinner')?.remove();
+                lastToolMsg.querySelector('.chat-tool-status').innerHTML += ' ✓';
+            }
+            
+            lastToolMsg = addToolMessage(container, data.name);
+            
+            // Reset bubble for next message
+            currentBubble = null;
+            currentContent = '';
         });
         
         eventSource.addEventListener('done', (e) => {
             eventSource.close();
-            const data = JSON.parse(e.data);
-            if (data.tools_used && data.tools_used.length > 0) {
-                document.getElementById('tools-status').innerHTML = 
-                    `<div class="tools-summary">Tools used: ${data.tools_used.join(', ')}</div>`;
-            } else {
-                document.getElementById('tools-status').innerHTML = '';
+            
+            // Mark any pending tool as done
+            if (lastToolMsg) {
+                lastToolMsg.querySelector('.tool-spinner')?.remove();
+                lastToolMsg.querySelector('.chat-tool-status').innerHTML += ' ✓';
             }
+            
+            addChatMessage(container, '✅', 'Analysis complete!', 'status');
             btn.disabled = false;
             btn.textContent = 'Analyse Issue';
         });
         
         eventSource.addEventListener('error', (e) => {
             eventSource.close();
-            result.innerHTML = `<div class="error"><strong>Error:</strong> Connection lost or analysis failed</div>`;
+            addChatMessage(container, '❌', 'Connection lost or analysis failed', 'error');
             btn.disabled = false;
             btn.textContent = 'Analyse Issue';
         });
