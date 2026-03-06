@@ -79,7 +79,7 @@ function addToolMessage(container, toolName, args) {
         <div class="chat-avatar">${emoji}</div>
         <div class="chat-tool-status">
             <span class="tool-spinner"></span>
-            Fetching: <strong>${description}</strong> ...
+            <span class="tool-label">Fetching:</span> <strong>${description}</strong>
         </div>
     `;
     container.appendChild(msg);
