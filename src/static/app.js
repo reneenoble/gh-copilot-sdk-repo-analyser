@@ -76,9 +76,8 @@ function addToolMessage(container, toolName, args) {
     const msg = document.createElement('div');
     msg.className = 'chat-message chat-tool';
     msg.innerHTML = `
-        <div class="chat-avatar">${emoji}</div>
+        <div class="chat-avatar tool-avatar-spin">${emoji}</div>
         <div class="chat-tool-status">
-            <span class="tool-spinner"></span>
             <span class="tool-label">Fetching:</span> <strong>${description}</strong>
         </div>
     `;
@@ -133,7 +132,7 @@ document.getElementById('analyseForm').addEventListener('submit', async (e) => {
             
             // Mark previous tool as done
             if (lastToolMsg) {
-                lastToolMsg.querySelector('.tool-spinner')?.remove();
+                lastToolMsg.querySelector('.chat-avatar')?.classList.remove('tool-avatar-spin');
                 lastToolMsg.querySelector('.chat-tool-status').innerHTML += ' ✓';
                 lastToolMsg = null;
             }
@@ -153,7 +152,7 @@ document.getElementById('analyseForm').addEventListener('submit', async (e) => {
             
             // Mark previous tool as done
             if (lastToolMsg) {
-                lastToolMsg.querySelector('.tool-spinner')?.remove();
+                lastToolMsg.querySelector('.chat-avatar')?.classList.remove('tool-avatar-spin');
                 lastToolMsg.querySelector('.chat-tool-status').innerHTML += ' ✓';
             }
             
@@ -169,7 +168,7 @@ document.getElementById('analyseForm').addEventListener('submit', async (e) => {
             
             // Mark any pending tool as done
             if (lastToolMsg) {
-                lastToolMsg.querySelector('.tool-spinner')?.remove();
+                lastToolMsg.querySelector('.chat-avatar')?.classList.remove('tool-avatar-spin');
                 lastToolMsg.querySelector('.chat-tool-status').innerHTML += ' ✓';
             }
             

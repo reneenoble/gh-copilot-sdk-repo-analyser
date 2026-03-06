@@ -305,9 +305,10 @@ button:disabled {
     display: inline;
 }
 
-.chat-tool-status .tool-spinner {
-    margin-top: 0.3rem;
-    flex-shrink: 0;
+.tool-avatar-spin {
+    animation: spin 1.2s ease-in-out infinite;
+    border-color: #2da44e !important;
+    box-shadow: 0 0 0 2px #2da44e40;
 }
 
 .chat-tool-status .tool-label {
