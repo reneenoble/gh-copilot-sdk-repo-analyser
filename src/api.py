@@ -3,7 +3,7 @@ FastAPI wrapper for the GitHub Issue Complexity Analyser.
 
 Provides a REST API to analyse GitHub issues and get formatted results.
 
-Run with: uvicorn api:app --reload
+Run with: cd src && uvicorn api:app --reload
 """
 
 import asyncio
