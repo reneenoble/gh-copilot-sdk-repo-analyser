@@ -95,6 +95,26 @@ async def stream_analysis(owner: str, repo: str, issue_number: int):
     tool_calls = []
     expecting_tools = False
     got_final_response = False
+    # Map tool_call_id -> args from assistant.turn_end tool_requests
+    pending_tool_args = {}
+
+    def _parse_tool_args(raw_args):
+        """Parse tool arguments from various formats."""
+        if raw_args is None:
+            return {}
+        if isinstance(raw_args, dict):
+            return raw_args
+        if isinstance(raw_args, str):
+            try:
+                return json.loads(raw_args)
+            except (json.JSONDecodeError, TypeError):
+                return {}
+        # Handle Pydantic models or dataclass-like objects
+        if hasattr(raw_args, 'model_dump'):
+            return raw_args.model_dump()
+        if hasattr(raw_args, '__dict__'):
+            return {k: v for k, v in vars(raw_args).items() if not k.startswith('_')}
+        return {}
 
     def on_event(event):
         nonlocal expecting_tools, got_final_response
@@ -111,13 +131,31 @@ async def stream_analysis(owner: str, repo: str, issue_number: int):
                 
                 if tool_calls and not expecting_tools:
                     got_final_response = True
+        
+        elif event_name == "assistant.turn_end":
+            # Capture tool_requests with their arguments before execution starts
+            tool_requests = getattr(event.data, 'tool_requests', None)
+            if tool_requests:
+                expecting_tools = True
+                for tr in tool_requests:
+                    tr_name = getattr(tr, 'name', None)
+                    tr_id = getattr(tr, 'tool_call_id', None)
+                    tr_args = _parse_tool_args(getattr(tr, 'arguments', None))
+                    if tr_id:
+                        pending_tool_args[tr_id] = {"name": tr_name, "args": tr_args}
                 
         elif event_name in ("tool.call", "tool.execution_start"):
             tool_name = getattr(event.data, 'name', None) or getattr(event.data, 'tool_name', None)
-            # Only queue if tool name exists
             if tool_name:
                 tool_calls.append(tool_name)
-                queue.put_nowait(("tool_call", tool_name))
+                # Try to get args: first from pending_tool_args, then from event itself
+                tool_call_id = getattr(event.data, 'tool_call_id', None)
+                tool_args = {}
+                if tool_call_id and tool_call_id in pending_tool_args:
+                    tool_args = pending_tool_args.pop(tool_call_id).get("args", {})
+                else:
+                    tool_args = _parse_tool_args(getattr(event.data, 'arguments', None))
+                queue.put_nowait(("tool_call", {"name": tool_name, "args": tool_args}))
                 expecting_tools = False
             
         elif event_name == "tool.execution_complete":
@@ -139,7 +177,7 @@ async def stream_analysis(owner: str, repo: str, issue_number: int):
         if event_type == "message":
             yield f"event: message\ndata: {json.dumps({'content': data})}\n\n"
         elif event_type == "tool_call":
-            yield f"event: tool_call\ndata: {json.dumps({'name': data})}\n\n"
+            yield f"event: tool_call\ndata: {json.dumps(data)}\n\n"
         elif event_type == "done":
             yield f"event: done\ndata: {json.dumps({'tools_used': data})}\n\n"
             break

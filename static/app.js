@@ -32,21 +32,54 @@ function addChatMessage(container, emoji, content, type = 'assistant') {
     return msg.querySelector('.chat-content');
 }
 
-function addToolMessage(container, toolName) {
+function describeToolCall(toolName, args) {
     const toolEmojis = {
         'get_github_issue': '📋',
         'get_repo_structure': '📂',
         'search_code_in_repo': '🔍',
-        'get_file_content': '📄'
+        'get_file_content': '📄',
+        'report_intent': '📝'
     };
     const emoji = toolEmojis[toolName] || '🔧';
+
+    let detail = '';
+    if (args) {
+        switch (toolName) {
+            case 'get_github_issue':
+                if (args.owner && args.repo && args.issue_number)
+                    detail = `<code>${args.owner}/${args.repo}#${args.issue_number}</code>`;
+                break;
+            case 'get_repo_structure':
+                detail = args.path
+                    ? `<code>${args.path}</code>`
+                    : '<code>/</code> (root)';
+                break;
+            case 'search_code_in_repo':
+                if (args.query) detail = `"${args.query}"`;
+                break;
+            case 'get_file_content':
+                if (args.path) detail = `<code>${args.path}</code>`;
+                break;
+            case 'report_intent':
+                if (args.intent) detail = args.intent;
+                break;
+        }
+    }
+
+    const label = toolName.replace(/_/g, ' ');
+    const description = detail ? `${label} &mdash; ${detail}` : label;
+    return { emoji, description };
+}
+
+function addToolMessage(container, toolName, args) {
+    const { emoji, description } = describeToolCall(toolName, args);
     const msg = document.createElement('div');
     msg.className = 'chat-message chat-tool';
     msg.innerHTML = `
         <div class="chat-avatar">${emoji}</div>
         <div class="chat-tool-status">
             <span class="tool-spinner"></span>
-            Fetching: <strong>${toolName.replace(/_/g, ' ')}</strong>...
+            Fetching: <strong>${description}</strong> ...
         </div>
     `;
     container.appendChild(msg);
@@ -124,7 +157,7 @@ document.getElementById('analyseForm').addEventListener('submit', async (e) => {
                 lastToolMsg.querySelector('.chat-tool-status').innerHTML += ' ✓';
             }
             
-            lastToolMsg = addToolMessage(container, data.name);
+            lastToolMsg = addToolMessage(container, data.name, data.args);
             
             // Reset bubble for next message
             currentBubble = null;
